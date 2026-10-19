@@ -24,6 +24,7 @@ ref = sys.argv[1] if len(sys.argv) > 1 else "origin/main"
 start_step = int(sys.argv[2]) if len(sys.argv) > 2 else 1
 reuse = sys.argv[3] if len(sys.argv) > 3 else None
 frontend_only = len(sys.argv) > 4 and sys.argv[4] == "frontend"
+app_only = len(sys.argv) > 4 and sys.argv[4] == "app"
 commit = subprocess.check_output(["git", "rev-parse", ref + "^{commit}"], cwd=SOURCE, text=True).strip()
 if subprocess.check_output(["git", "status", "--porcelain"], cwd=SOURCE, text=True).strip():
     raise SystemExit("Source checkout has uncommitted changes.")
@@ -47,10 +48,11 @@ if reuse:
     changed = subprocess.check_output(["git", "diff", "--name-only", reuse, commit], cwd=SOURCE, text=True).splitlines()
     runtime_config = {"integrations/conexus/alphalab-research-agent/agents/AlphaLab-Research-Agent.agent.json", "integrations/conexus/model-providers.mjs", "integrations/conexus/web-search.mjs", "integrations/conexus/local-host.mjs"}
     frontend_paths = ("apps/desktop/src/", "apps/desktop/tests/")
-    compatible = all(name.startswith(frontend_paths) for name in changed) if frontend_only else all(name.startswith(("apps/api/", "tests/")) or name in runtime_config for name in changed)
+    app_paths = ("apps/api/", "tests/", *frontend_paths) if app_only else ("apps/api/", "tests/")
+    compatible = all(name.startswith(frontend_paths) for name in changed) if frontend_only else all(name.startswith(app_paths) or name in runtime_config for name in changed)
     if not changed or not compatible:
-        raise SystemExit("Reuse scope does not match the changed source paths.")
-    for name in (["conexus", "conexus-source"] if frontend_only else ["web", "conexus", "conexus-source"]):
+        raise SystemExit("Only Python API/test changes may reuse the identical frontend and Conexus programs.")
+    for name in (["conexus", "conexus-source"] if frontend_only or app_only else ["web", "conexus", "conexus-source"]):
         target = release / "build" / name
         if not target.exists():
             shutil.copytree(base / "build" / name, target, symlinks=True)
@@ -100,7 +102,7 @@ try:
         for index, (command, cwd) in enumerate(commands, 1):
             if index < start_step:
                 continue
-            if reuse and index in ({5, 13} if frontend_only else {4, 5, 6, 7, 8, 13}):
+            if reuse and index in ({5, 13} if frontend_only or app_only else {4, 5, 6, 7, 8, 13}):
                 output.write(f"\nValidated unchanged frontend/Conexus check inherited from {reuse}: {' '.join(command)}\n")
                 continue
             label = " ".join(command)
@@ -119,9 +121,9 @@ try:
         "platform": "darwin-arm64",
         "agent_mode": "local",
         "platform_exclusions": "Two Linux flock/systemctl deployment-script cases; Mac deployment uses launchd and Python fcntl.",
-        "unchanged_frontend_and_core_from": None if frontend_only else reuse,
-        "unchanged_core_from": reuse if frontend_only else None,
-        "validation_scope": "frontend tests, lint, build, contracts and facade" if frontend_only else "full release",
+        "unchanged_frontend_and_core_from": None if frontend_only or app_only else reuse,
+        "unchanged_core_from": reuse if frontend_only or app_only else None,
+        "validation_scope": "frontend tests, lint, build, contracts and facade" if frontend_only else "full application with unchanged core" if app_only else "full release",
         "checks": [" ".join(cmd) for cmd, _ in commands[2:]],
     }
     (release / ".mac-local-build-validated.json").write_text(json.dumps(metadata, indent=2))

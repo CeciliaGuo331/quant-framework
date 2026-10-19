@@ -8,10 +8,10 @@ themselves prove which revision is running. For dev3, compare the authenticated
 
 | Ref | Revision at this handoff | Meaning |
 | --- | --- | --- |
-| `deploy/dev3-local-20261019` | `501217e6775070903a282c7221cb38211bace06a` | Exact source revision running at [dev3](https://dev3.acetoken.net/app/). Python API and Conexus Host both run locally on the Mac mini. |
-| tag `dev3-local-20261019` | `501217e6775070903a282c7221cb38211bace06a` | Immutable marker for that deployed revision, including the OpenRouter search repair. |
-| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the five deployed fixes, this branch map, credential-free macOS management examples, and private-file ignore rules. Its additional documentation and examples have not been deployed. |
-| `main` and `dev_liu` | `a49b1ebd69cb14a93c4dc08155234ad81464537a` | Current upstream 0.7.0 local-Conexus foundation at handoff; does not yet include the five dev3 fixes until the synchronization PR is merged. |
+| `deploy/dev3-local-20261019` | `d0ce50c04b682dbd299c694660afc70504a207ff` | Exact source revision running at [dev3](https://dev3.acetoken.net/app/). Python API and Conexus Host both run locally on the Mac mini. |
+| tag `dev3-local-20261019` | `d0ce50c04b682dbd299c694660afc70504a207ff` | Immutable marker for that deployed revision, including model/search settings and Agent connection recovery. |
+| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the seven deployed changes, this branch map, credential-free macOS management examples, and private-file ignore rules. Its additional documentation and examples have not been deployed. |
+| `main` and `dev_liu` | `a49b1ebd69cb14a93c4dc08155234ad81464537a` | Current upstream 0.7.0 local-Conexus foundation at handoff; does not yet include the dev3 changes until the synchronization PR is merged. |
 | `deploy/local` | `1c166ac99b163ccdbd669d419a614ce44d198c4f` | Older local integration. Not the current dev3 deployment source. |
 | `dongfang` | `4adc0ef42bb30cabb3838bab4ebe622f7cfd9066` | Legacy external Conexus cloud/publication/tunnel integration. Not the current dev3 deployment source. |
 
@@ -41,14 +41,21 @@ The operator's existing local credential was configured privately on the Mac.
 It differs from the old cloud Conexus credential. No credential value is part
 of this repository or handoff.
 
-Web search now uses the active OpenRouter profile through
-`ALPHALAB_WEB_SEARCH_PROVIDER=openrouter`. It no longer requires an unrelated
-Brave key. Each invocation permits one search, up to ten returned sources and
+Open **Model and search** in the sidebar to configure research models and web
+search. Search supports OpenRouter, Brave Search, and off. It can follow the
+active model profile or use a separate saved OpenRouter profile/account.
+OpenRouter search needs no Brave key. Saved UI search settings override the
+private environment fallback `ALPHALAB_WEB_SEARCH_PROVIDER=openrouter`. Each invocation permits one search, up to ten returned sources and
 a bounded response size/timeout. Search is charged to the selected account
 in addition to model usage. Brave remains an explicitly supported alternative.
 Missing setup returns a non-retryable error; local research remains available.
 
-## Deployed fixes
+Settings belong to one workstation and are shared by users of that installation.
+Separate local installations may use different providers. The current dev3
+shared login does not implement per-person settings or account isolation.
+Model/search keys remain write-only and private to the backend.
+
+## Deployed changes
 
 | Commit | Behavior |
 | --- | --- |
@@ -57,6 +64,14 @@ Missing setup returns a non-retryable error; local research remains available.
 | `0089bdd` | Model tools with conditional optional fields explicitly disable implicit strict conversion, while preserving an explicitly requested strict schema. This lets successful Agent runs complete without an invalid blocker field. |
 | `9182255` | Model settings initialize without requiring browser `crypto.randomUUID`, including ordinary HTTP origins and environments without that API. Provider IDs identify settings records, not authentication credentials. |
 | `501217e` | Web Search can reuse the saved OpenRouter profile, returns actual source citations, bounds search calls/results, and never returns provider keys or error bodies. Missing search configuration is non-retryable. |
+
+| `e7502ee` | Adds bilingual model/search settings, independent search accounts, write-only private keys, save-only model profiles, and safe connection tests without a restart. |
+| `d0ce50c` | Reconnects interrupted Agent event streams using the last sequence, retries read-only requests, clears recovered connection errors, and recovers an accepted message after a lost POST response without repeating its billed submission. |
+
+A completed backend Run could previously leave a sticky browser "Failed to fetch"
+after a transient network interruption. Event-stream recovery now resumes the
+same Run; the existing authoritative snapshot polling remains active. Permanent
+authentication/authorization errors still surface to the user.
 
 ## Management and verification
 
@@ -82,12 +97,12 @@ remote model route; keep that proxy running. API/UI and tool traffic stay local.
 
 Verification already performed on the deployment revision:
 
-- Backend suite: 375 passed and 8 skipped; two Linux-only flock/systemctl
+- Backend suite: 386 passed and 8 skipped; two Linux-only flock/systemctl
   deployment cases were excluded on macOS.
-- Frontend tests, lint and production build: 25 tests passed after the browser
-  compatibility fix. Contract, facade and repository-hygiene checks passed.
+- Frontend tests, lint and production build: 40 tests passed with the settings and connection
+  recovery changes. Contract, facade and repository-hygiene checks passed.
 - Pinned Conexus core: 205 checks passed earlier in the same local migration;
-  unchanged core artifacts were reused for the frontend-only fix.
+  unchanged core artifacts were reused for these application changes.
 - Real-provider, read-only Agent acceptance called `projects.list`, reached
   `completed`, delivered its terminal event and persisted its assistant reply.
   Restart checks retained that Run, its conversation and historical reports.
@@ -97,6 +112,12 @@ Verification already performed on the deployment revision:
 - The `crypto.randomUUID` startup error was reproduced on an HTTP browser
   origin before the fix; the same origin loaded the workstation and saved
   provider settings after the fix.
+- Connection recovery tests interrupt a stream after delivery, replay old events,
+  close a stream early, reject its initial connection, and lose a submission
+  response. Recovery preserves event order and never repeats the submission.
+- Settings UI acceptance saved a separate inactive model, disabled/tested search,
+  switched to an independent OpenRouter profile, performed real public search,
+  and retained settings after refresh in an isolated fixture workstation.
 - Authenticated public routes and current JS/CSS assets returned 200;
   anonymous website/API requests returned 401.
 

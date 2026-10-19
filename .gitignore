@@ -65,6 +65,7 @@ alphalab.env
 alphalab.env.*
 !alphalab.env.example
 model-providers.json
+search-providers.json
 model-profile.pending.json
 alphalab-connection.json
 admin-token
