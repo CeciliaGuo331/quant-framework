@@ -45,7 +45,7 @@ if reuse:
     if not (base / ".mac-local-build-validated.json").is_file():
         raise SystemExit("Reuse requires a validated base build.")
     changed = subprocess.check_output(["git", "diff", "--name-only", reuse, commit], cwd=SOURCE, text=True).splitlines()
-    runtime_config = {"integrations/conexus/alphalab-research-agent/agents/AlphaLab-Research-Agent.agent.json", "integrations/conexus/model-providers.mjs"}
+    runtime_config = {"integrations/conexus/alphalab-research-agent/agents/AlphaLab-Research-Agent.agent.json", "integrations/conexus/model-providers.mjs", "integrations/conexus/web-search.mjs", "integrations/conexus/local-host.mjs"}
     frontend_paths = ("apps/desktop/src/", "apps/desktop/tests/")
     compatible = all(name.startswith(frontend_paths) for name in changed) if frontend_only else all(name.startswith(("apps/api/", "tests/")) or name in runtime_config for name in changed)
     if not changed or not compatible:

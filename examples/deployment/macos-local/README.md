@@ -61,6 +61,14 @@ environment variables does not automatically update that saved profile.
 For a remote model behind the operator's proxy, configure the proxy locally;
 the example does not contain a proxy credential.
 
+For the operator-approved OpenRouter search route, set the private host value
+`ALPHALAB_WEB_SEARCH_PROVIDER="openrouter"` and restart when no research job is
+active. The active model profile must point to `https://openrouter.ai/api/v1`.
+No separate Brave key is needed. The search adapter uses one Exa search per
+invocation with at most ten sources and bills search/model usage to OpenRouter.
+Use `brave` with a privately configured `BRAVE_SEARCH_API_KEY` for the alternative
+Brave route; never add either provider's key to the example.
+
 ## Operations
 
 ```bash

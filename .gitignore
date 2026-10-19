@@ -62,6 +62,8 @@ pytest-cache-files-*/
 
 # Instance credentials and migration exports must stay outside source control.
 alphalab.env
+alphalab.env.*
+!alphalab.env.example
 model-providers.json
 model-profile.pending.json
 alphalab-connection.json

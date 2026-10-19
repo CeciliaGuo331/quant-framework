@@ -8,10 +8,10 @@ themselves prove which revision is running. For dev3, compare the authenticated
 
 | Ref | Revision at this handoff | Meaning |
 | --- | --- | --- |
-| `deploy/dev3-local-20261019` | `918225572e1fb6805fe1b9ea8286fbf1ea7f2501` | Exact source revision running at [dev3](https://dev3.acetoken.net/app/). Python API and Conexus Host both run locally on the Mac mini. |
-| tag `dev3-local-20261019` | `918225572e1fb6805fe1b9ea8286fbf1ea7f2501` | Immutable marker for that deployed revision. |
-| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the four deployed fixes, this branch map, credential-free macOS management examples, and private-file ignore rules. Its additional documentation and examples have not been deployed. |
-| `main` and `dev_liu` | `a49b1ebd69cb14a93c4dc08155234ad81464537a` | Current upstream 0.7.0 local-Conexus foundation at handoff; does not yet include the four dev3 fixes until the synchronization PR is merged. |
+| `deploy/dev3-local-20261019` | `501217e6775070903a282c7221cb38211bace06a` | Exact source revision running at [dev3](https://dev3.acetoken.net/app/). Python API and Conexus Host both run locally on the Mac mini. |
+| tag `dev3-local-20261019` | `501217e6775070903a282c7221cb38211bace06a` | Immutable marker for that deployed revision, including the OpenRouter search repair. |
+| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the five deployed fixes, this branch map, credential-free macOS management examples, and private-file ignore rules. Its additional documentation and examples have not been deployed. |
+| `main` and `dev_liu` | `a49b1ebd69cb14a93c4dc08155234ad81464537a` | Current upstream 0.7.0 local-Conexus foundation at handoff; does not yet include the five dev3 fixes until the synchronization PR is merged. |
 | `deploy/local` | `1c166ac99b163ccdbd669d419a614ce44d198c4f` | Older local integration. Not the current dev3 deployment source. |
 | `dongfang` | `4adc0ef42bb30cabb3838bab4ebe622f7cfd9066` | Legacy external Conexus cloud/publication/tunnel integration. Not the current dev3 deployment source. |
 
@@ -41,6 +41,13 @@ The operator's existing local credential was configured privately on the Mac.
 It differs from the old cloud Conexus credential. No credential value is part
 of this repository or handoff.
 
+Web search now uses the active OpenRouter profile through
+`ALPHALAB_WEB_SEARCH_PROVIDER=openrouter`. It no longer requires an unrelated
+Brave key. Each invocation permits one search, up to ten returned sources and
+a bounded response size/timeout. Search is charged to the selected account
+in addition to model usage. Brave remains an explicitly supported alternative.
+Missing setup returns a non-retryable error; local research remains available.
+
 ## Deployed fixes
 
 | Commit | Behavior |
@@ -49,6 +56,7 @@ of this repository or handoff.
 | `6a905a5` | Model connection checks honor the explicitly configured model proxy for remote endpoints, bypass it for loopback endpoints, and cap Agent output at 8192 tokens. |
 | `0089bdd` | Model tools with conditional optional fields explicitly disable implicit strict conversion, while preserving an explicitly requested strict schema. This lets successful Agent runs complete without an invalid blocker field. |
 | `9182255` | Model settings initialize without requiring browser `crypto.randomUUID`, including ordinary HTTP origins and environments without that API. Provider IDs identify settings records, not authentication credentials. |
+| `501217e` | Web Search can reuse the saved OpenRouter profile, returns actual source citations, bounds search calls/results, and never returns provider keys or error bodies. Missing search configuration is non-retryable. |
 
 ## Management and verification
 
@@ -83,6 +91,9 @@ Verification already performed on the deployment revision:
 - Real-provider, read-only Agent acceptance called `projects.list`, reached
   `completed`, delivered its terminal event and persisted its assistant reply.
   Restart checks retained that Run, its conversation and historical reports.
+- OpenRouter search returned real official-documentation citations using only
+  a public query. Search/provider adapter tests passed; full Agent search
+  acceptance also completed through the local Web Search capability.
 - The `crypto.randomUUID` startup error was reproduced on an HTTP browser
   origin before the fix; the same origin loaded the workstation and saved
   provider settings after the fix.

@@ -97,6 +97,25 @@ Environment changes require a restart. Brave search is optional; its absence doe
 not disable local research, data, or backtest tools. Model weights and a local
 model server are not included in the deployment package.
 
+### Optional web search
+
+To reuse an active OpenRouter model profile for web search, set
+`ALPHALAB_WEB_SEARCH_PROVIDER=openrouter` in the private host environment and
+restart when no Agent or research job is active. The profile must use
+`https://openrouter.ai/api/v1`. This route needs no separate Brave key; search
+and model usage are charged to that OpenRouter account.
+
+The adapter uses the [OpenRouter web search server tool](https://openrouter.ai/docs/guides/features/server-tools/web-search)
+with one Exa search per invocation and at most ten sources. It returns real
+source citation URLs/excerpts and rejects answers without citations. Search
+results remain untrusted research material; verify original sources before
+using claims as evidence.
+
+The default Brave route remains available with a private `BRAVE_SEARCH_API_KEY`,
+or explicitly select `ALPHALAB_WEB_SEARCH_PROVIDER=brave`. If search is not
+configured, the tool returns a non-retryable setup error while local research
+remains usable. Do not put populated model/search credentials in Git.
+
 ## Modes, ports, and state
 
 ```bash
