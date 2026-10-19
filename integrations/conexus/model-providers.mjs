@@ -23,7 +23,13 @@ export function configuredCompletion(path, createModelCompletion, env = process.
       const profile = await readActiveProvider(path, env)
       if (!profile) throw new Error('Open Model providers and configure a model before starting the Agent.')
       const complete = createModelCompletion({ baseUrl: profile.base_url, model: profile.model, apiKey: profile.api_key })
-      completion = input => complete({ ...input, model: profile.model })
+      // These tools contain conditional optional fields (for example,
+      // complete.blocker only applies to blocked runs). Preserve those semantics
+      // when a provider routes Chat Completions through a strict Responses API.
+      completion = input => complete({ ...input, model: profile.model,
+        ...(input.tools ? { tools: input.tools.map(tool => tool.type === 'function'
+          ? { ...tool, function: { strict: false, ...tool.function } } : tool) } : {}),
+      })
       completions.set(request.signal, completion)
     }
     return completion(request)
