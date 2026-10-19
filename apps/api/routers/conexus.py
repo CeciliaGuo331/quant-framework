@@ -112,6 +112,10 @@ def _upstream_headers(
         if value:
             headers[name] = value
     credential = request.headers.get("authorization") if authorization == "request" else None
+    # Workstation Basic authentication belongs to this proxy. Managed Runs
+    # authenticate upstream with their saved, scoped Conexus credential.
+    if credential and not credential.lower().startswith("bearer "):
+        credential = None
     if authorization == "workspace":
         token = _workspace_token()
         credential = f"Bearer {token}" if token else None

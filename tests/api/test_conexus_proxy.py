@@ -246,3 +246,53 @@ def test_agent_conversation_path_must_match_payload_id(tmp_path, monkeypatch):
     )
 
     assert response.status_code == 409
+
+
+@pytest.mark.parametrize(("method", "suffix"), [
+    ("GET", ""), ("GET", "/events"), ("POST", "/cancel"),
+    ("POST", "/interactions/question-1/answer"),
+])
+def test_authenticated_workstation_uses_saved_run_credential(monkeypatch, method, suffix):
+    from apps.api.auth import HttpBasicAuthMiddleware
+
+    monkeypatch.setenv("ALPHALAB_WEB_AUTH_ENABLED", "true")
+    monkeypatch.setenv("ALPHALAB_WEB_USERNAME", "operator")
+    monkeypatch.setenv("ALPHALAB_WEB_PASSWORD", "private-workstation-password")
+    monkeypatch.setenv("CONEXUS_WEB_ORIGIN", "http://conexus.test")
+    observed = []
+
+    def saved_headers(run_id):
+        assert run_id == "run-managed"
+        return {"authorization": "Bearer saved-run-credential"}
+
+    async def record_snapshot(_run):
+        pass
+
+    def upstream(request):
+        observed.append(request.headers.get("authorization"))
+        if observed[-1] != "Bearer saved-run-credential":
+            return httpx.Response(404, json={"error": "Run not found or access denied."})
+        if suffix == "/events":
+            class EventStream(httpx.AsyncByteStream):
+                async def __aiter__(self):
+                    yield b'data: {"type":"run.completed"}\n\n'
+
+            return httpx.Response(200, stream=EventStream(),
+                                  headers={"content-type": "text/event-stream"})
+        return httpx.Response(200, json={"run": {"id": "run-managed", "status": "completed"}})
+
+    monkeypatch.setattr(conexus.agent_run_service, "run_headers", saved_headers)
+    monkeypatch.setattr(conexus.agent_run_service, "record_snapshot", record_snapshot)
+    client_type = httpx.AsyncClient
+    monkeypatch.setattr(conexus.httpx, "AsyncClient",
+                        lambda **kwargs: client_type(transport=httpx.MockTransport(upstream), **kwargs))
+    app = FastAPI()
+    app.add_middleware(HttpBasicAuthMiddleware)
+    app.include_router(conexus.router)
+    with TestClient(app) as client:
+        response = client.request(method, "/api/conexus/runs/run-managed" + suffix,
+                                  auth=("operator", "private-workstation-password"),
+                                  json={"answer": "yes"} if method == "POST" else None)
+    assert response.status_code == 200, response.text
+    assert observed == ["Bearer saved-run-credential"]
+    assert "private-workstation-password" not in response.text
