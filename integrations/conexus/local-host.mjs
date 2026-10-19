@@ -4,6 +4,7 @@ import { configuredWebSearch } from './web-search.mjs'
 import { writeFile, rename } from 'node:fs/promises'
 import { resolve, dirname } from 'node:path'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { timingSafeEqual } from 'node:crypto'
 
 const sourceRoot = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const entry = resolve(sourceRoot, 'build/conexus/apps/local-host/src/index.mjs')
@@ -23,6 +24,15 @@ const release = compileHarnessWorkspace({ workspace, harnessNodeId: 'alphalab-re
 const token = process.env.CONEXUS_LOCAL_TOKEN
 const host = await createLocalHost({ projectRoot, release, slug, token, model, runtimeAdapter: runtime.adapter,
   complete: configuredCompletion(providerPath, createModelCompletion),
+})
+host.app.post('/api/alphalab/search/test', async (request, reply) => {
+  const expected = Buffer.from(`Bearer ${token}`)
+  const received = Buffer.from(request.headers.authorization || '')
+  if (!token || received.length !== expected.length || !timingSafeEqual(received, expected)) {
+    return reply.code(401).send({ error: 'Authentication required.' })
+  }
+  const search = configuredWebSearch(providerPath, { settingsOverride: request.body })
+  return search({ input: { query: 'OpenRouter web search server tool documentation', count: 3 }, signal: AbortSignal.timeout(50000) })
 })
 host.app.addHook('preSerialization', async (request, _reply, payload) => {
   if (request.routeOptions.url !== '/health') return payload

@@ -29,6 +29,7 @@ from apps.api.routers import (
     paper,
     python_editor,
     sdk_docs,
+    search_providers,
     strategy,
     system,
     validation,
@@ -138,6 +139,7 @@ app.include_router(system.router)
 app.include_router(compat.router)
 app.include_router(conexus.router)
 app.include_router(model_providers.router)
+app.include_router(search_providers.router)
 
 
 @app.get("/", response_model=None)

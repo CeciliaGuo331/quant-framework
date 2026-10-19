@@ -1,4 +1,6 @@
 import { readActiveProvider } from './model-providers.mjs'
+import { readFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
 
 const failure = (code, error) => ({ result: { success: false, code, error, retryable: false } })
 
@@ -21,17 +23,32 @@ function sourceUrl(value) {
 }
 
 /** Search credentials are resolved locally and never passed through tool inputs. */
-export function configuredWebSearch(providerPath, { env = process.env, fetchImpl = fetch } = {}) {
+export function configuredWebSearch(providerPath, { env = process.env, fetchImpl = fetch, settingsOverride } = {}) {
   return async params => {
     const query = typeof params.input?.query === 'string' ? params.input.query.trim() : ''
     if (!query || query.length > 2000) return failure('invalid_query', 'Provide a nonempty search query of at most 2000 characters.')
     const requested = Number(params.input.count ?? 5)
     const count = Number.isFinite(requested) ? Math.max(1, Math.min(20, Math.trunc(requested))) : 5
-    const mode = env.ALPHALAB_WEB_SEARCH_PROVIDER?.trim() || 'brave'
     const signal = AbortSignal.any([...(params.signal ? [params.signal] : []), AbortSignal.timeout(45000)])
     try {
+      let settings = settingsOverride
+      if (!settings) {
+        try {
+          settings = JSON.parse(await readFile(join(dirname(providerPath), 'search-providers.json'), 'utf8'))
+          if (settings.version !== 1) throw new Error('Unsupported search settings format.')
+        } catch (error) {
+          if (error.code !== 'ENOENT') throw error
+          settings = { provider: env.ALPHALAB_WEB_SEARCH_PROVIDER?.trim() || 'brave', brave_api_key: env.BRAVE_SEARCH_API_KEY?.trim() }
+        }
+      }
+      const mode = settings.provider
+      if (mode === 'off') return failure('search_disabled', 'Web search is disabled in Model and search settings. Local research tools remain available.')
       if (mode === 'openrouter') {
-        const profile = await readActiveProvider(providerPath, env)
+        let profile
+        if (settings.model_profile_id) {
+          const profiles = JSON.parse(await readFile(providerPath, 'utf8'))
+          profile = profiles.profiles.find(row => row.id === settings.model_profile_id)
+        } else profile = await readActiveProvider(providerPath, env)
         if (!profile || profile.base_url.replace(/\/+$/, '') !== 'https://openrouter.ai/api/v1' || !profile.api_key) {
           return failure('search_not_configured', 'OpenRouter search requires an active OpenRouter model profile. Configure it before retrying search.')
         }
@@ -70,14 +87,14 @@ export function configuredWebSearch(providerPath, { env = process.env, fetchImpl
         if (!results.length) return failure('search_no_sources', 'OpenRouter returned no source citations. Do not treat the response as verified search evidence.')
         return { result: { success: true, provider: 'openrouter', results } }
       }
-      if (mode !== 'brave' || !env.BRAVE_SEARCH_API_KEY?.trim()) {
+      if (mode !== 'brave' || !settings.brave_api_key?.trim()) {
         return failure('search_not_configured', 'Web search is not configured. Select OpenRouter search or configure a Brave search key in the private host settings. Do not retry until configuration changes; local research tools remain available.')
       }
       const url = new URL('https://api.search.brave.com/res/v1/web/search')
       url.searchParams.set('q', query)
       url.searchParams.set('count', String(count))
       if (typeof params.input.freshness === 'string') url.searchParams.set('freshness', params.input.freshness)
-      const response = await fetchImpl(url, { headers: { Accept: 'application/json', 'X-Subscription-Token': env.BRAVE_SEARCH_API_KEY.trim() }, signal })
+      const response = await fetchImpl(url, { headers: { Accept: 'application/json', 'X-Subscription-Token': settings.brave_api_key.trim() }, signal })
       if (!response.ok) {
         await response.body?.cancel()
         return failure('search_provider_error', `Brave search returned HTTP ${response.status}. Check search configuration before retrying.`)

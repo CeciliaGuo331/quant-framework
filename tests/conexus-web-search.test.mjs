@@ -1,6 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import { configuredWebSearch } from '../integrations/conexus/web-search.mjs'
+import { mkdtemp, writeFile, rm } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const path = '/nonexistent/alphalab-search-provider.json'
 const profileEnv = { ALPHALAB_WEB_SEARCH_PROVIDER: 'openrouter', CONEXUS_MODEL_BASE_URL: 'https://openrouter.ai/api/v1', CONEXUS_MODEL_ID: 'test-model', CONEXUS_MODEL_API_KEY: 'fixture-model-key' }
@@ -75,4 +78,41 @@ test('Brave configuration remains supported independently of model selection', a
 test('oversized queries are rejected before model or search traffic', async () => {
   const search = configuredWebSearch(path, { env: profileEnv, fetchImpl: () => { throw new Error('Unexpected request') } })
   assert.equal((await search(request({ query: 'a'.repeat(2001) }))).result.code, 'invalid_query')
+})
+
+test('saved search choices apply to the next call and can use an inactive model profile', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'alphalab-search-'))
+  const providers = join(root, 'model-providers.json')
+  const settings = join(root, 'search-providers.json')
+  let calls = 0
+  await writeFile(providers, JSON.stringify({ active_id: 'local', profiles: [
+    { id: 'local', base_url: 'http://localhost:12345/v1', model: 'local' },
+    { id: 'search', base_url: 'https://openrouter.ai/api/v1', model: 'search-model', api_key: 'fixture-search-key' },
+  ] }))
+  const search = configuredWebSearch(providers, { env: profileEnv, fetchImpl: async (_url, options) => {
+    calls += 1
+    assert.equal(options.headers.Authorization, 'Bearer fixture-search-key')
+    assert.equal(JSON.parse(options.body).model, 'search-model')
+    return reply({ choices: [{ message: { annotations: [{ type: 'url_citation', url_citation: { url: 'https://example.com/source' } }] } }] })
+  } })
+  try {
+    await writeFile(settings, JSON.stringify({ version: 1, provider: 'off' }))
+    assert.equal((await search(request({ query: 'query' }))).result.code, 'search_disabled')
+    assert.equal(calls, 0)
+    await writeFile(settings, JSON.stringify({ version: 1, provider: 'openrouter', model_profile_id: 'search' }))
+    assert.equal((await search(request({ query: 'query' }))).result.success, true)
+    assert.equal(calls, 1)
+  } finally { await rm(root, { recursive: true, force: true }) }
+})
+
+test('an unsaved search test override does not change the saved selection', async () => {
+  const root = await mkdtemp(join(tmpdir(), 'alphalab-search-override-'))
+  const settings = join(root, 'search-providers.json')
+  const value = JSON.stringify({ version: 1, provider: 'brave', brave_api_key: 'fixture-stored-key' })
+  await writeFile(settings, value)
+  try {
+    const search = configuredWebSearch(join(root, 'model-providers.json'), { settingsOverride: { provider: 'off' } })
+    assert.equal((await search(request({ query: 'query' }))).result.code, 'search_disabled')
+    assert.equal(await (await import('node:fs/promises')).readFile(settings, 'utf8'), value)
+  } finally { await rm(root, { recursive: true, force: true }) }
 })
