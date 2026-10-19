@@ -2,11 +2,12 @@ import { useState } from "react"
 import { Settings2 } from "lucide-react"
 
 import { getApiBase } from "@/lib/api"
+import { createModelProviderId } from "@/lib/modelProviderId"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
 
 interface Profile { id: string; name: string; base_url: string; model: string; has_api_key?: boolean }
 interface Settings { mode: string; active_id: string | null; profiles: Profile[]; environment_configured: boolean }
-const fresh = (): Profile => ({ id: "provider-" + crypto.randomUUID(), name: "", base_url: "", model: "" })
+const fresh = (): Profile => ({ id: createModelProviderId(), name: "", base_url: "", model: "" })
 
 export function ModelProviderSettings({ collapsed = false }: { collapsed?: boolean }) {
   const [open, setOpen] = useState(false)
