@@ -82,3 +82,24 @@ def test_loopback_model_test_accepts_no_key_and_does_not_persist_unsaved_setting
     response = api.post("/api/model-providers/test", json=profile(api_key="", base_url="http://127.0.0.1:12345/v1"))
     assert response.json()["ok"] is True
     assert not service.settings_path().exists()
+
+
+def test_connection_test_respects_explicit_proxy_but_keeps_loopback_direct(monkeypatch, tmp_path):
+    api = client(monkeypatch, tmp_path)
+    monkeypatch.setenv("ALPHALAB_MODEL_PROXY", "http://127.0.0.1:12346")
+    observed = []
+    original = httpx.AsyncClient
+
+    def configured_client(**kwargs):
+        observed.append(kwargs.pop("proxy"))
+        assert kwargs["trust_env"] is False
+        return original(transport=httpx.MockTransport(lambda request: httpx.Response(
+            200, json={"choices": [{"message": {"role": "assistant", "content": "OK"}}]},
+        )), **kwargs)
+
+    monkeypatch.setattr(model_providers.httpx, "AsyncClient", configured_client)
+    assert api.post("/api/model-providers/test", json=profile()).json()["ok"] is True
+    assert api.post("/api/model-providers/test", json=profile(
+        base_url="http://127.0.0.1:12345/v1", api_key="",
+    )).json()["ok"] is True
+    assert observed == ["http://127.0.0.1:12346", None]

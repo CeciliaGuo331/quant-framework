@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+from urllib.parse import urlsplit
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -73,7 +74,9 @@ async def test_model_provider(request: ProviderRequest) -> dict:
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from None
     try:
-        async with httpx.AsyncClient(timeout=20, trust_env=False, follow_redirects=False) as client:
+        loopback = urlsplit(profile["base_url"]).hostname in {"localhost", "127.0.0.1", "::1"}
+        proxy = None if loopback else os.getenv("ALPHALAB_MODEL_PROXY") or None
+        async with httpx.AsyncClient(timeout=20, trust_env=False, follow_redirects=False, proxy=proxy) as client:
             async with client.stream(
                 "POST", profile["base_url"] + "/chat/completions",
                 headers={"Authorization": f"Bearer {profile['api_key']}"} if profile["api_key"] else {},
