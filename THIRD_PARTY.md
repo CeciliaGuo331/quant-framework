@@ -1,8 +1,17 @@
 # Included Conexus Core snapshot
 
 `vendor/conexus` is a verified source export from the Conexus project.
-The exact upstream commit and per-file hashes are recorded in its `EXPORT.json`;
-`integrations/conexus/runtime.lock.json` pins the deployed version.
+The exact source commit and per-file hashes are recorded in its `EXPORT.json`;
+`integrations/conexus/runtime.lock.json` pins the bundled version. Deployment refs separately identify the running version.
+
+The 2026-10-20 CI maintenance export is commit
+`e8b4ec564098c1959bd409dc286dbac12d450297`, created from the verified standalone
+export of upstream `dcc74445382d73be7f1ff06b7bde147c95e7240d`. Its explicit
+`provenance` records that base. It upgrades the embedded App CSS compiler to
+Tailwind 4 and patches dependencies, preserving source-only scanning, custom
+surface colors and the absence of global preflight. No private checkout was
+imported. The verified source files remain read-only build inputs; refresh them
+through `scripts/sync_conexus_core.py --export-root <reviewed-export>`.
 
 The owner has selected the runtime core and local service for opening. The Canvas
 editor/UI and commercial services remain private and are not in this snapshot.

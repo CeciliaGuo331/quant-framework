@@ -2,19 +2,16 @@ import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
-import { pathToFileURL } from 'node:url'
+import { dirname, join } from 'node:path'
+import { fileURLToPath, pathToFileURL } from 'node:url'
 import { promisify } from 'node:util'
-import postcss from 'postcss'
-import tailwindcss from 'tailwindcss'
+import { compile } from '@tailwindcss/node'
+import { Scanner } from '@tailwindcss/oxide'
 
 const execFileAsync = promisify(execFile)
 const BUILT_IN_PACKAGES = new Set(['react', 'react-dom'])
 const MAX_APP_CODE_CHARACTERS = 2_000_000
 const MAX_APP_DEPENDENCIES = 64
-const OPACITY_SCALE = Object.fromEntries(
-  Array.from({ length: 101 }, (_value, index) => [String(index), `${index / 100}`])
-)
 
 export interface AppBundleInput {
   code?: unknown
@@ -195,23 +192,21 @@ createRoot(root).render(React.createElement(ErrorBoundary, null, React.createEle
 `
 }
 
-async function buildTailwindCss(source: string): Promise<string> {
-  const result = await postcss([
-    tailwindcss({
-      content: [{ raw: source, extension: 'tsx' }],
-      corePlugins: { preflight: false },
-      theme: {
-        extend: {
-          opacity: OPACITY_SCALE,
-          colors: {
-            surface: { 0: '#08080d', 1: '#0f0f17', 2: '#0a0a12', 3: '#141420' }
-          }
-        }
-      },
-      plugins: []
-    })
-  ]).process('@tailwind utilities;', { from: undefined })
-  return result.css
+export async function buildTailwindCss(source: string): Promise<string> {
+  // Scan only the supplied TSX, never the Host's working directory. Theme and
+  // utilities preserve the embedded App styles without adding global preflight.
+  const compiler = await compile(`
+    @import "tailwindcss/theme.css" layer(theme);
+    @import "tailwindcss/utilities.css" layer(utilities);
+    @theme {
+      --color-surface-0: #08080d;
+      --color-surface-1: #0f0f17;
+      --color-surface-2: #0a0a12;
+      --color-surface-3: #141420;
+    }
+  `, { base: dirname(fileURLToPath(import.meta.url)), onDependency: () => {} })
+  const scanner = new Scanner({ sources: [] })
+  return compiler.build(scanner.scanFiles([{ content: source, extension: 'tsx' }]))
 }
 
 export class AppBundler {

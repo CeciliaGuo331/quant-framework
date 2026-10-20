@@ -3,13 +3,22 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "exports": {".": "./src/index.mjs"},
-  "files": ["src"],
-  "scripts": {"start": "node src/cli.mjs", "test": "node --test test/*.test.mjs"},
-  "engines": {"node": ">=22.18"},
+  "exports": {
+    ".": "./src/index.mjs"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "start": "node src/cli.mjs",
+    "test": "node --test test/*.test.mjs"
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
   "dependencies": {
     "@conexus/runtime-core": "file:../../packages/runtime-core",
     "@conexus/node-host-runtime": "file:../../packages/node-host-runtime",
-    "fastify": "^5.6.2"
+    "fastify": "^5.12.5"
   }
 }

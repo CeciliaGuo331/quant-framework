@@ -1,6 +1,6 @@
 # Deployment branches and the dev3 local workstation
 
-Recorded on 2026-10-19. Branch names describe source history; they do not by
+Deployment recorded on 2026-10-19; CI maintenance updated on 2026-10-20. Branch names describe source history; they do not by
 themselves prove which revision is running. For dev3, compare the authenticated
 `/api/health` response's `commit_sha` with the deployment ref below.
 
@@ -10,7 +10,7 @@ themselves prove which revision is running. For dev3, compare the authenticated
 | --- | --- | --- |
 | `deploy/dev3-local-20261019` | `d0ce50c04b682dbd299c694660afc70504a207ff` | Exact source revision running at [dev3](https://dev3.acetoken.net/app/). Python API and Conexus Host both run locally on the Mac mini. |
 | tag `dev3-local-20261019` | `d0ce50c04b682dbd299c694660afc70504a207ff` | Immutable marker for that deployed revision, including model/search settings and Agent connection recovery. |
-| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the seven deployed changes, this branch map, credential-free macOS management examples, and private-file ignore rules. Its additional documentation and examples have not been deployed. |
+| `sync/dev3-local-20261019` | Deployment revision plus this handoff | Review branch containing the seven deployed changes, this branch map, credential-free macOS management examples, and private-file ignore rules. It also includes subsequent CI dependency and cross-platform repairs. These additional changes have not been deployed. |
 | `main` and `dev_liu` | `a49b1ebd69cb14a93c4dc08155234ad81464537a` | Current upstream 0.7.0 local-Conexus foundation at handoff; does not yet include the dev3 changes until the synchronization PR is merged. |
 | `deploy/local` | `1c166ac99b163ccdbd669d419a614ce44d198c4f` | Older local integration. Not the current dev3 deployment source. |
 | `dongfang` | `4adc0ef42bb30cabb3838bab4ebe622f7cfd9066` | Legacy external Conexus cloud/publication/tunnel integration. Not the current dev3 deployment source. |
@@ -124,6 +124,37 @@ Verification already performed on the deployment revision:
 No new backtest, data synchronization, research edit or trade was executed for
 the read-only deployment acceptance. Local audits retained the original
 research data and checked historical report content without publishing it.
+
+## Review-branch CI maintenance (not deployed)
+
+The sync branch updates dependency locks to pass both full frontend and production
+runtime security audits without audit exclusions or lowering the failure threshold.
+Tailwind 3 carried unpatched transitive advisories, so the dashboard and embedded
+App compiler now use Tailwind 4. Dashboard class merging, CSS-variable syntax,
+forced-color focus outlines and existing small shadow/blur values are migrated
+with it. The existing HSL theme and radius settings remain loaded explicitly.
+The supported Chromium target (128+) meets Tailwind 4 requirements.
+
+Conexus changes were committed in a standalone maintenance checkout derived from
+the verified public export, then imported through the existing checksum-verifying
+importer. [Source provenance](../THIRD_PARTY.md) and `vendor/conexus/EXPORT.json`
+record both the maintenance revision and its original upstream base. No private
+Conexus Web Host or commercial files were copied.
+
+Platform contracts now run Linux deployment cases only on Linux and compare
+resolved editor file URIs on every OS. Linux deployment coverage remains active
+in the three Ubuntu Python jobs. All other supported platforms keep the same
+checks, and the workflow's audit gates remain unchanged.
+
+Candidate validation on macOS: 386 backend tests passed, 10 skipped (including
+both Linux deployment cases); 41 frontend tests passed, lint and desktop build
+passed; 207 Conexus checks and core package-boundary checks passed. Frontend
+full/production audits and the bundled runtime production audit each reported
+zero vulnerabilities. Isolated UI checks cover model/search settings and theme
+switching without using private project data or provider credentials.
+
+These checks apply to the review candidate. The running dev3 deployment and its
+recorded tag remain at `d0ce50c`; accepting this PR does not itself deploy it.
 
 ## Private material stays outside Git
 

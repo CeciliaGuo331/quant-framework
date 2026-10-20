@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import test from 'node:test'
 import { fileURLToPath, pathToFileURL } from 'node:url'
-import { createAppBundler } from './app-bundler.js'
+import { buildTailwindCss, createAppBundler } from './app-bundler.js'
 
 const require = createRequire(import.meta.url)
 
@@ -30,7 +30,7 @@ export default function App({ props }) {
 
     assert.equal(result.ok, true, result.error)
     assert.match(result.js ?? '', /Hello/)
-    assert.match(result.css ?? '', /padding: 1rem/)
+    assert.match(result.css ?? '', /padding: calc\(var\(--spacing\) \* 4\)/)
   } finally {
     rmSync(temporary, { recursive: true, force: true })
   }
@@ -61,11 +61,30 @@ test('bundles Apps using only the external compiler and React packages beside an
       })
       assert.equal(result.ok, true, result.error)
       assert.match(result.js ?? '', /Getting Started/)
-      assert.match(result.css ?? '', /padding: 1rem/)
+      assert.match(result.css ?? '', /padding: calc\(var\(--spacing\) \* 4\)/)
       assert.deepEqual(result.installed, [])
     }
   } finally {
     await compiler?.stop()
     await rm(temporary, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   }
+})
+
+test('embedded App CSS preserves utilities, surface colors and integer opacity without preflight', async () => {
+  const css = await buildTailwindCss('<div className="flex bg-surface-1 opacity-37 p-4 hover:bg-surface-3" />')
+  assert.match(css, /\.flex\s*\{/)
+  assert.match(css, /--color-surface-1:\s*#0f0f17/)
+  assert.match(css, /\.bg-surface-1\s*\{/)
+  assert.match(css, /\.opacity-37\s*\{/)
+  assert.match(css, /opacity:\s*(?:37%|0\.37)/)
+  assert.match(css, /\.p-4\s*\{/)
+  assert.doesNotMatch(css, /box-sizing:\s*border-box/)
+})
+
+test('embedded App scans only its own source and does not retain another App candidates', async () => {
+  const first = await buildTailwindCss('<div className="grid-cols-7" />')
+  assert.match(first, /\.grid-cols-7\s*\{/)
+  const second = await buildTailwindCss('<div className="flex" />')
+  assert.match(second, /\.flex\s*\{/)
+  assert.doesNotMatch(second, /\.grid-cols-7\s*\{/)
 })

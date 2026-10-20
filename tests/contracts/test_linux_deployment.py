@@ -3,12 +3,13 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 import pytest
 
 
-@pytest.mark.skipif(os.name == "nt" or not shutil.which("bash"), reason="Linux release script")
+@pytest.mark.skipif(sys.platform != "linux" or not shutil.which("bash"), reason="Linux release script")
 @pytest.mark.parametrize("previous_release", [False, True])
 def test_failed_release_restores_only_an_existing_previous_link(tmp_path, previous_release):
     commit = "a" * 40
