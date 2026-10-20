@@ -1,6 +1,6 @@
 {
   "schema": "conexus.core-export.v1",
-  "sourceRevision": "e8b4ec564098c1959bd409dc286dbac12d450297",
+  "sourceRevision": "5c7eec9cd50f61b9fe776d17c609719976975614",
   "sourceDirty": false,
   "textNormalization": "LF",
   "licenseStatus": "pending-owner-selection",
@@ -29,8 +29,8 @@
     "packages/node-host-runtime/src/shell/node-shell-runtime.ts": "cd1180f46ab99f89ddc3f66b0744dfd22b8b339f24210044f68c00077a788dd4",
     "packages/node-host-runtime/src/tools/tool-node-executor.test.ts": "56f867d3aa4265516e2cd61e201a5c065e5ad8830ab31bfba110cab669da092e",
     "packages/node-host-runtime/src/tools/tool-node-executor.ts": "c12ad128c0920f14eb016359c8521926dcdd7c0f1b97809e5741ca707e14506f",
-    "packages/node-host-runtime/src/workspace/node-backing-store.test.ts": "901eacbe794fe8f14fcc38bc71769c19c15fa0ab9f9b1b1cad9c5d3dcf2f0e18",
-    "packages/node-host-runtime/src/workspace/node-backing-store.ts": "eab1d1085775bc2205ac2a84a2d05bcaa9e51b4046cebf5feabe0486f8dc526f",
+    "packages/node-host-runtime/src/workspace/node-backing-store.test.ts": "b2a3161c105bc6119fe5cbdf0d12d13f66ad70e05b081d4a8b0ad68a8766ee48",
+    "packages/node-host-runtime/src/workspace/node-backing-store.ts": "838295452df1d441075483a16ee63a522be77e4795075a1c761fb2aa6135173e",
     "packages/node-host-runtime/tsconfig.json": "330aa03d626b47b9045df8f15adc6c995dcd802690237a6ecffb35360479d8ff",
     "packages/runtime-core/package.json": "efcdb645ff542d49e0c75ec7f1bdc66cfae7a37de48b8f0723c040740f77c37b",
     "packages/runtime-core/src/agent/agent-canvas-observation.test.ts": "eac50bdb16d09ae12b616fe6b5bcfb6f72b9f23302d414df1548a08dc2330f2a",

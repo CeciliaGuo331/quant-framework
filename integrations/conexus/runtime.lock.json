@@ -1,6 +1,6 @@
 {
   "repository": "Conexus Core",
-  "revision": "e8b4ec564098c1959bd409dc286dbac12d450297",
+  "revision": "5c7eec9cd50f61b9fe776d17c609719976975614",
   "packages": [
     "apps/local-host",
     "packages/node-host-runtime",

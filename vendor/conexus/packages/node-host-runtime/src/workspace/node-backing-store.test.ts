@@ -110,3 +110,77 @@ test('NodeBackingStore prunes a replaced backing and confines imported assets to
     await fsp.rm(projectRoot, { recursive: true, force: true })
   }
 })
+
+
+test('aliased workspace and source roots hydrate, import assets and prune their own content', async () => {
+  const temporary = await fsp.realpath(await temporaryRoot('conexus-aliased-backing-'))
+  try {
+    const physical = join(temporary, 'physical')
+    const root = join(temporary, 'alias')
+    const physicalSource = join(temporary, 'source')
+    const sourceRoot = join(temporary, 'source-alias')
+    await fsp.mkdir(physical)
+    await fsp.mkdir(physicalSource)
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+    await fsp.symlink(physical, root, linkType)
+    await fsp.symlink(physicalSource, sourceRoot, linkType)
+    await fsp.writeFile(join(physicalSource, 'sample.png'), Buffer.from([1, 2, 3]))
+    const store = new NodeBackingStore({ root, sourceRoot })
+    const first = await store.materializeNodes([{
+      id: 'note', type: 'note', data: { content: 'round trip' }
+    }, {
+      id: 'asset', type: 'image', data: { path: '/project/sample.png' }
+    }]) as BackedWorkspaceNode[]
+    const hydrated = await store.hydrateNodes(first) as BackedWorkspaceNode[]
+    assert.equal(hydrated[0]?.data?.content, 'round trip')
+    assert.equal((await fsp.readFile(join(root, String(first[1]?.data?.backingPath)))).toString('hex'), '010203')
+    const oldPath = join(root, String(first[0]?.data?.backingPath))
+    const next = await store.materializeNodes([{
+      id: 'note', type: 'agent', data: { objective: 'replacement' }
+    }]) as BackedWorkspaceNode[]
+    await store.prune(first, next)
+    await assert.rejects(fsp.access(oldPath), (error: unknown) => hasMissingCode(error))
+  } finally {
+    await fsp.rm(temporary, { recursive: true, force: true })
+  }
+})
+
+function hasMissingCode(error: unknown): boolean {
+  return (error as NodeJS.ErrnoException).code === 'ENOENT'
+}
+
+test('canonical path checks reject linked content and assets outside the workspace', async () => {
+  const temporary = await fsp.realpath(await temporaryRoot('conexus-backing-boundary-'))
+  try {
+    const root = join(temporary, 'root')
+    const outside = join(temporary, 'outside')
+    await fsp.mkdir(outside)
+    await fsp.writeFile(join(outside, 'private.md'), 'outside fixture')
+    const linkType = process.platform === 'win32' ? 'junction' : 'dir'
+    const store = new NodeBackingStore({ root })
+    await store.ensureStructure()
+    await fsp.symlink(outside, join(root, 'workspace/documents/escape'), linkType)
+    await fsp.symlink(outside, join(root, 'escape'), linkType)
+    const document: BackedWorkspaceNode = {
+      id: 'outside', type: 'document', data: { backingPath: 'workspace/documents/escape/private.md' }
+    }
+    assert.equal((await store.hydrateNode(document)).data?.content, undefined)
+    await store.prune([document], [])
+    assert.equal(await fsp.readFile(join(outside, 'private.md'), 'utf8'), 'outside fixture')
+    const assets = await store.materializeNodes([{
+      id: 'outside-asset', type: 'image', data: { path: '/project/escape/private.md' }
+    }]) as BackedWorkspaceNode[]
+    assert.equal(assets[0]?.data?.backingPath, undefined)
+    const redirected = join(temporary, 'redirected-root')
+    await fsp.mkdir(redirected)
+    await fsp.symlink(outside, join(redirected, 'workspace'), linkType)
+    const redirectedStore = new NodeBackingStore({ root: redirected })
+    const redirectedDocument: BackedWorkspaceNode = {
+      ...document, data: { backingPath: 'workspace/private.md' }
+    }
+    assert.equal((await redirectedStore.hydrateNode(redirectedDocument)).data?.content, undefined)
+    await assert.rejects(redirectedStore.ensureStructure(), /outside its root/)
+  } finally {
+    await fsp.rm(temporary, { recursive: true, force: true })
+  }
+})

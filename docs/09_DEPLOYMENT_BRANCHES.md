@@ -132,7 +132,8 @@ runtime security audits without audit exclusions or lowering the failure thresho
 Tailwind 3 carried unpatched transitive advisories, so the dashboard and embedded
 App compiler now use Tailwind 4. Dashboard class merging, CSS-variable syntax,
 forced-color focus outlines and existing small shadow/blur values are migrated
-with it. The existing HSL theme and radius settings remain loaded explicitly.
+with it. Global form/button defaults are in the base layer so explicit utility
+colors and typography continue to take precedence. The existing HSL theme and radius settings remain loaded explicitly.
 The supported Chromium target (128+) meets Tailwind 4 requirements.
 
 Conexus changes were committed in a standalone maintenance checkout derived from
@@ -141,6 +142,11 @@ importer. [Source provenance](../THIRD_PARTY.md) and `vendor/conexus/EXPORT.json
 record both the maintenance revision and its original upstream base. No private
 Conexus Web Host or commercial files were copied.
 
+Core workspace hydration, asset imports and pruning compare canonical paths on
+both sides of the boundary. This supports macOS aliases and Windows junctions/short
+paths without allowing links to content outside the configured workspace. Added
+regressions cover legitimate root aliases and rejected symlink escapes.
+
 Platform contracts now run Linux deployment cases only on Linux and compare
 resolved editor file URIs on every OS. Linux deployment coverage remains active
 in the three Ubuntu Python jobs. All other supported platforms keep the same
@@ -148,7 +154,7 @@ checks, and the workflow's audit gates remain unchanged.
 
 Candidate validation on macOS: 386 backend tests passed, 10 skipped (including
 both Linux deployment cases); 41 frontend tests passed, lint and desktop build
-passed; 207 Conexus checks and core package-boundary checks passed. Frontend
+passed; 209 Conexus checks and core package-boundary checks passed. Frontend
 full/production audits and the bundled runtime production audit each reported
 zero vulnerabilities. Isolated UI checks cover model/search settings and theme
 switching without using private project data or provider credentials.

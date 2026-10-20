@@ -242,8 +242,10 @@ export class NodeBackingStore {
     if (!path || node.type === 'image' || node.type === 'files') return rawNode
     let raw: string
     try {
-      const realPath = await fsp.realpath(path)
-      if (!isInside(this.contentRoot, realPath)) return rawNode
+      const [realPath, realContentRoot] = await Promise.all([
+        fsp.realpath(path), this.canonicalContentRoot()
+      ])
+      if (!realContentRoot || !isInside(realContentRoot, realPath)) return rawNode
       raw = await fsp.readFile(realPath, 'utf8')
     } catch (error) {
       if (hasErrorCode(error, 'ENOENT')) return rawNode
@@ -288,8 +290,11 @@ export class NodeBackingStore {
       const path = this.backingPath(node.data ?? {})
       if (!path || retainedPaths.has(pathKey(path))) continue
       try {
-        const [stat, realPath] = await Promise.all([fsp.lstat(path), fsp.realpath(path)])
-        if ((!stat.isFile() && !stat.isSymbolicLink()) || !isInside(this.contentRoot, realPath)) continue
+        const [stat, realPath, realContentRoot] = await Promise.all([
+          fsp.lstat(path), fsp.realpath(path), this.canonicalContentRoot()
+        ])
+        if ((!stat.isFile() && !stat.isSymbolicLink())
+          || !realContentRoot || !isInside(realContentRoot, realPath)) continue
         await fsp.unlink(path)
         backingContentCache.delete(path)
       } catch (error) {
@@ -353,10 +358,27 @@ export class NodeBackingStore {
       if (hasErrorCode(error, 'ENOENT')) return null
       throw error
     }
-    if (!this.allowExternalSources
-      && !isInside(this.root, realPath)
-      && !isInside(this.sourceRoot, realPath)) return null
+    if (!this.allowExternalSources) {
+      const roots = await Promise.all([this.root, this.sourceRoot].map(async (root) => {
+        try {
+          return await fsp.realpath(root)
+        } catch (error) {
+          if (hasErrorCode(error, 'ENOENT')) return null
+          throw error
+        }
+      }))
+      if (!roots.some((root) => root && isInside(root, realPath))) return null
+    }
     return realPath
+  }
+
+  private async canonicalContentRoot(): Promise<string | null> {
+    // Canonicalize both sides: macOS /var aliases and Windows junctions are
+    // valid roots, while a content directory linked outside its root is not.
+    const [root, content] = await Promise.all([
+      fsp.realpath(this.root), fsp.realpath(this.contentRoot)
+    ])
+    return content !== root && isInside(root, content) ? content : null
   }
 
   private async prepareDestination(candidate: string): Promise<void> {
