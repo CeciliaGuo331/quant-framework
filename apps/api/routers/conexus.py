@@ -112,6 +112,10 @@ def _upstream_headers(
         if value:
             headers[name] = value
     credential = request.headers.get("authorization") if authorization == "request" else None
+    # Workstation Basic authentication belongs to this proxy. Managed Runs
+    # authenticate upstream with their saved, scoped Conexus credential.
+    if credential and not credential.lower().startswith("bearer "):
+        credential = None
     if authorization == "workspace":
         token = _workspace_token()
         credential = f"Bearer {token}" if token else None
@@ -393,10 +397,14 @@ async def run_events(run_id: str, request: Request) -> Response:
     if os.getenv("ALPHALAB_AGENT_MODE") == "off":
         return _unavailable_response()
     client = httpx.AsyncClient(timeout=None, trust_env=False)
+    headers = _upstream_headers(request, accept="text/event-stream")
+    last_event_id = request.headers.get("last-event-id", "")
+    if last_event_id.isascii() and last_event_id.isdigit() and len(last_event_id) <= 16:
+        headers["Last-Event-ID"] = last_event_id
     upstream_request = client.build_request(
         "GET",
         f"{_web_origin()}/api/public/runs/{_path_segment(run_id)}/events",
-        headers=_upstream_headers(request, accept="text/event-stream"),
+        headers=headers,
     )
     try:
         upstream = await client.send(upstream_request, stream=True)

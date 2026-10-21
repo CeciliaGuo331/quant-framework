@@ -21,6 +21,7 @@
 
 ## Deployment reference
 
+- [Deployment branches and dev3](09_DEPLOYMENT_BRANCHES.md): exact deployed revision, legacy branch mapping, local architecture, private configuration and management.
 - [Local deployment](07_LOCAL_DEPLOYMENT.md): bundled Conexus runtime and model-provider settings.
 - [Deployment acceptance](08_LOCAL_DEPLOYMENT_VALIDATION.md): verification before promotion.
 

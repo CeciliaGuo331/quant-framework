@@ -12,6 +12,7 @@ import {
   selectRunExposure,
   streamRunEvents,
 } from "@/lib/conexus/publishedHarnessClient"
+import { isConnectionError } from "@/lib/conexus/runConnection"
 import {
   isTerminalRun,
   mergeRunSnapshot,
@@ -330,6 +331,7 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
   const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState("")
+  const connectionErrorRef = useRef(false)
   const runRef = useRef<PublishedHarnessRun | null>(null)
   const submittingRef = useRef(false)
   const historyReadyRef = useRef(false)
@@ -339,7 +341,18 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
   useEffect(() => { onCompletedRef.current = onCompleted }, [onCompleted])
 
   const conversation = history.conversations.find((item) => item.id === history.selectedId) ?? null
-  const acceptError = useCallback((reason: unknown) => setError(message(reason)), [])
+  const acceptError = useCallback((reason: unknown) => {
+    connectionErrorRef.current = isConnectionError(reason)
+    setError(connectionErrorRef.current
+      ? "连接暂时中断，正在重新读取任务结果。请勿重复发送。 / Connection interrupted; retrying."
+      : message(reason))
+  }, [])
+  const connectionRestored = useCallback(() => {
+    if (connectionErrorRef.current) {
+      connectionErrorRef.current = false
+      setError("")
+    }
+  }, [])
   const adoptRun = useCallback((next: PublishedHarnessRun, conversationId: string) => {
     const current = runRef.current
     const merged = current?.id === next.id ? mergeRunSnapshot(current, next) : next
@@ -357,6 +370,7 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
     const shared = session.conversations.map(storedConversation)
       .filter((item): item is AgentConversation => item !== null)
     historyReadyRef.current = true
+    connectionRestored()
     const active = session.runs.find((item) => !isTerminalRun(item.run))
     const recovered = restoreRun && !submittingRef.current
       ? active ?? (selectNewest ? session.runs.find((item) => item.conversationId === shared[0]?.id) : undefined)
@@ -369,7 +383,7 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
           ? current.selectedId : selectNewest ? conversations[0]?.id ?? null : null)
       return { conversations, selectedId }
     })
-  }, [adoptRun])
+  }, [adoptRun, connectionRestored])
 
   const reloadStatus = useCallback(async (signal?: AbortSignal) => {
     setLoading(true)
@@ -449,6 +463,7 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
       try {
         const latest = await readRun(runId, controller.signal)
         if (controller.signal.aborted || runRef.current?.id !== runId) return
+        connectionRestored()
         adoptRun(latest, conversationId)
         if (isTerminalRun(latest)) {
           await finalizeRun(latest, conversationId, controller.signal)
@@ -493,7 +508,7 @@ export function usePublishedAgent({ onCompleted }: Options = {}) {
       controller.abort()
       if (timer !== undefined) globalThis.clearTimeout(timer)
     }
-  }, [acceptError, adoptRun, finalizeRun, run?.id, runConversationId])
+  }, [acceptError, adoptRun, connectionRestored, finalizeRun, run?.id, runConversationId])
 
   const selectConversation = useCallback((conversationId: string) => {
     if (submittingRef.current || (runRef.current && !isTerminalRun(runRef.current))) return

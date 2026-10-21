@@ -13,6 +13,9 @@ htmlcov/
 
 .env
 .env.local
+.env.*
+!.env.example
+!.env.*.example
 .venv/
 venv/
 
@@ -56,3 +59,20 @@ pytest-cache-files-*/
 
 .conexus/
 /workspace/
+
+# Instance credentials and migration exports must stay outside source control.
+alphalab.env
+alphalab.env.*
+!alphalab.env.example
+model-providers.json
+search-providers.json
+model-profile.pending.json
+alphalab-connection.json
+admin-token
+historical-reports.json
+report-migration.json
+/.config/
+/.local/
+/runtime/
+/backups/
+/private-deployment/

@@ -10,14 +10,8 @@ import type {
   PublishedHarnessRunEvent,
   PublishedHarnessWorkspaceSnapshot,
 } from "./types"
-import { parseRunEventBlock } from "./runState"
-
-export class ConexusClientError extends Error {
-  constructor(message: string, readonly status: number) {
-    super(message)
-    this.name = "ConexusClientError"
-  }
-}
+import { ConexusClientError, readWithRecovery, resumeRunEvents, submitRunOnce } from "./runConnection"
+export { ConexusClientError } from "./runConnection"
 
 function baseUrl(): string {
   return `${getApiBase()}/conexus`
@@ -38,9 +32,13 @@ async function responseError(response: Response): Promise<ConexusClientError> {
 }
 
 async function json<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(`${baseUrl()}${path}`, init)
-  if (!response.ok) throw await responseError(response)
-  return response.json() as Promise<T>
+  const request = async () => {
+    const response = await fetch(`${baseUrl()}${path}`, init)
+    if (!response.ok) throw await responseError(response)
+    return response.json() as Promise<T>
+  }
+  return !init?.method || init.method === "GET"
+    ? readWithRecovery(request, init?.signal ?? undefined) : request()
 }
 
 export function readConexusStatus(signal?: AbortSignal): Promise<ConexusStatus> {
@@ -99,11 +97,13 @@ export async function createRun(params: {
   input: Record<string, unknown>
   conversation: { id: string; title: string; createdAt: string; messageId: string; message: string }
 }): Promise<{ run: PublishedHarnessRun; conversation: AgentConversation }> {
-  return json("/runs", {
+  // A response can be lost after acceptance. Recover its exact persisted message;
+  // never repeat a model-billed POST after an ambiguous network failure.
+  return submitRunOnce(() => json("/runs", {
     method: "POST",
     headers: { Accept: "application/json", "Content-Type": "application/json" },
     body: JSON.stringify(params),
-  })
+  }), () => readAgentSession(), params.conversation)
 }
 
 export async function readSharedAgentConversations(
@@ -186,33 +186,17 @@ export async function streamRunEvents(params: {
   signal: AbortSignal
   onEvent: (event: PublishedHarnessRunEvent) => void | Promise<void>
 }): Promise<void> {
-  const response = await fetch(`${baseUrl()}/runs/${encodeURIComponent(params.runId)}/events`, {
-    headers: { Accept: "text/event-stream" },
-    cache: "no-store",
-    signal: params.signal,
+  return resumeRunEvents({
+    ...params,
+    open: async (lastSequence) => {
+      const response = await fetch(`${baseUrl()}/runs/${encodeURIComponent(params.runId)}/events`, {
+        headers: { Accept: "text/event-stream", ...(lastSequence ? { "Last-Event-ID": String(lastSequence) } : {}) },
+        cache: "no-store",
+        signal: params.signal,
+      })
+      if (!response.ok) throw await responseError(response)
+      if (!response.body) throw new TypeError("Conexus run event stream is unavailable.")
+      return response.body
+    },
   })
-  if (!response.ok) throw await responseError(response)
-  if (!response.body) throw new Error("Conexus run event stream is unavailable.")
-
-  const reader = response.body.getReader()
-  const decoder = new TextDecoder()
-  let buffer = ""
-  while (!params.signal.aborted) {
-    const chunk = await reader.read()
-    if (chunk.done) {
-      buffer = `${buffer}${decoder.decode()}`.replace(/\r\n/g, "\n")
-      const trailing = parseRunEventBlock(buffer.trim())
-      if (trailing) await params.onEvent(trailing)
-      break
-    }
-    buffer = `${buffer}${decoder.decode(chunk.value, { stream: true })}`.replace(/\r\n/g, "\n")
-    let boundary = buffer.indexOf("\n\n")
-    while (boundary >= 0) {
-      const block = buffer.slice(0, boundary)
-      buffer = buffer.slice(boundary + 2)
-      const event = parseRunEventBlock(block)
-      if (event) await params.onEvent(event)
-      boundary = buffer.indexOf("\n\n")
-    }
-  }
 }

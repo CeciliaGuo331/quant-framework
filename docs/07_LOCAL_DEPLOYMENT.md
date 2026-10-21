@@ -56,15 +56,16 @@ for the target platform.
 
 ## Configure model providers
 
-Open **Model providers** in the sidebar:
+Open **Model and search → Research model** in the sidebar:
 
 1. Add a display name, API base URL, and exact model ID.
 2. Enter the provider's API key. A loopback HTTP model server may omit it.
-3. Select **Test connection** to send a short request to that model.
+3. Select **Test model** to send a short request to that model.
 4. Select **Save and use** to activate the profile.
 5. Send an Agent request to verify the model's tool-calling behavior.
 
-Multiple named profiles can be saved. Keys are stored in the backend's private
+Multiple named profiles can be saved. **Save only** stores a profile without
+changing the active research model, so it can be selected separately for search. Keys are stored in the backend's private
 runtime directory and are never returned by the settings API or stored in browser
 local storage. An empty key field preserves a saved key only when its endpoint
 is unchanged. Enter a new key when changing the endpoint.
@@ -96,6 +97,41 @@ A saved active profile takes precedence over the three model environment values.
 Environment changes require a restart. Brave search is optional; its absence does
 not disable local research, data, or backtest tools. Model weights and a local
 model server are not included in the deployment package.
+
+### Optional web search
+
+Open **Model and search → Web search**:
+
+1. Select **OpenRouter**, **Brave Search**, or **Off**.
+2. For OpenRouter, follow the active research model or choose a saved OpenRouter
+   profile. Add a separate profile with **Save only** to use another search
+   account without switching the research model. Its base URL must be
+   `https://openrouter.ai/api/v1`; its stored key is reused privately.
+3. For Brave, enter a private search key. An empty field preserves its saved key.
+4. **Test search** uses an unsaved configuration with a fixed public documentation
+   query; it may incur provider charges. It does not send research reports.
+5. **Save search settings** applies to the next search without restarting AlphaLab.
+
+Settings are shared by the installation, with keys stored in the private backend
+runtime directory. Separate local installations can configure different providers;
+this shared workstation does not implement per-person account isolation.
+
+Saved search settings take precedence over environment defaults. Without saved
+settings, `ALPHALAB_WEB_SEARCH_PROVIDER=openrouter` reuses the active model profile,
+`brave` uses `BRAVE_SEARCH_API_KEY`, and `off` disables external search.
+Environment changes require a restart. OpenRouter search and model usage are
+charged to the selected account, and do not require a separate Brave key.
+
+The adapter uses the [OpenRouter web search server tool](https://openrouter.ai/docs/guides/features/server-tools/web-search)
+with one Exa search per invocation and at most ten sources. It returns real
+source citation URLs/excerpts and rejects answers without citations. Search
+results remain untrusted research material; verify original sources before
+using claims as evidence.
+
+The default Brave route remains available when no search configuration has
+been saved and no environment provider was selected. If search is not
+configured, the tool returns a non-retryable setup error while local research
+remains usable. Do not put populated model/search credentials in Git.
 
 ## Modes, ports, and state
 

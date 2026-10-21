@@ -31,7 +31,7 @@ def test_default_editor_mirror_uses_isolated_runtime():
     )
     assert response.status_code == 200
     target = expected / "strategy/deployment-test/strategy.py"
-    assert response.json()["uri"] == target.as_uri()
+    assert response.json()["uri"] == target.resolve().as_uri()
     assert target.read_text(encoding="utf-8") == "x = 1\n"
 
 
