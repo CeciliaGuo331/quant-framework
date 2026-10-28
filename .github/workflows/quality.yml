@@ -81,10 +81,12 @@ jobs:
       - run: python scripts/check_conexus_runtime.py
       - run: npm --prefix build/conexus audit --omit=dev
       - run: python -m pytest tests/api/test_local_agent_integration.py tests/contracts/test_conexus_distribution.py -q
-      - name: Conexus example validation
-        run: |
-          node examples/conexus/minimal-agent/main.mjs
-          node examples/conexus/financial-integration/main.mjs
-          node --test "examples/conexus/minimal-agent/test/*.test.mjs"
-          node --test "examples/conexus/financial-integration/test/*.test.mjs"
+      - name: Minimal Agent demo
+        run: node examples/conexus/minimal-agent/main.mjs
+      - name: Financial integration demo
+        run: node examples/conexus/financial-integration/main.mjs
+      - name: Minimal Agent lifecycle tests
+        run: node --test "examples/conexus/minimal-agent/test/*.test.mjs"
+      - name: Financial integration tests
+        run: node --test "examples/conexus/financial-integration/test/*.test.mjs"
       - run: git diff --exit-code

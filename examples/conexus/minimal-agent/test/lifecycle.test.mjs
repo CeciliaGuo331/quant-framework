@@ -49,7 +49,9 @@ async function startRun(host, request = 'Summarize the sample series.') {
 }
 
 async function waitForRun(host, started, done = (run) => ['completed', 'blocked', 'failed', 'cancelled'].includes(run.status)) {
-  const deadline = Date.now() + 20000
+  // Windows CI can spend ~19 seconds starting each real PowerShell tool process.
+  // Recovery cases invoke two tools; keep their overall budget above both starts.
+  const deadline = Date.now() + (process.platform === 'win32' ? 90000 : 20000)
   while (Date.now() < deadline) {
     const response = await host.app.inject({
       url: `/api/public/runs/${started.run.id}`,
