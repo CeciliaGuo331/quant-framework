@@ -2,7 +2,7 @@
 
 The handover document for the later multi-Agent work. Everything below was
 verified by probe against the pinned core in `build/conexus`
-(`UPSTREAM.json` revision `5c7eec9`), not inferred from the core's own
+(`UPSTREAM.json` revision `9cd8c69`), not inferred from the core's own
 documentation.
 
 The short version: **delegation between two Agent nodes already runs on the

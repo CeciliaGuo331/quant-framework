@@ -9,7 +9,7 @@ What exists today is recorded in [INTERFACE.md](INTERFACE.md): which parts of
 delegation already work on the bundled local Host, which parts are missing, and
 one verified defect that blocks the obvious implementation. That document is the
 handover, and it is written from probes against the pinned core at
-`build/conexus/UPSTREAM.json` revision `5c7eec9`, not from the core's own docs.
+`build/conexus/UPSTREAM.json` revision `9cd8c69`, not from the core's own docs.
 
 ## Why reserve instead of ship
 

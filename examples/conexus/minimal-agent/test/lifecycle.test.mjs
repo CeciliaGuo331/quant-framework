@@ -28,7 +28,8 @@ async function withHost(options, body) {
     return await body(host, projectRoot)
   } finally {
     await host.close()
-    if (!options.projectRoot) await rm(projectRoot, { recursive: true, force: true })
+    // Windows can retain a child process's directory handle briefly after close.
+    if (!options.projectRoot) await rm(projectRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
 
@@ -381,7 +382,7 @@ test('Host restart cancels interrupted runs, replays no tools, and keeps the wor
       assert.equal(workspace.nodes.find((node) => node.label === 'Committed').values.content, 'durable')
     })
   } finally {
-    await rm(projectRoot, { recursive: true, force: true })
+    await rm(projectRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 })
 

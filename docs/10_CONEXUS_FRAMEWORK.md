@@ -9,7 +9,7 @@ any of it.
 
 Everything here describes the pinned snapshot recorded in
 [`integrations/conexus/runtime.lock.json`](../integrations/conexus/runtime.lock.json),
-currently core revision `5c7eec9`. The packages are `private: true` and their
+currently core revision `9cd8c69`. The packages are `private: true` and their
 license is not yet selected, so this is a buildable in-repo snapshot rather
 than a dependency on a published release.
 

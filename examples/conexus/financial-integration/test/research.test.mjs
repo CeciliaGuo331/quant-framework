@@ -31,7 +31,8 @@ async function withResearchHost({ complete, apiOrigin, stub }, body) {
     return await body(host)
   } finally {
     await host.close()
-    await rm(projectRoot, { recursive: true, force: true })
+    // Allow Windows to release handles from the tool child process after close.
+    await rm(projectRoot, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 })
   }
 }
 
