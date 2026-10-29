@@ -715,16 +715,19 @@ RiskBudgetConstraint(
 RiskModelSpec(
     lookback: int,                    # sessions of returns ending at as_of
     minimum_observations: int,
-    estimator: str = "sample",        # identifier from the risk-model table
+    estimator: str = "sample",        # SDK v1 supports only "sample"
 )
 ```
 
 Construction validates and fails on: IDs that are empty, start with `_`, or are
 duplicated in the set; bounds that are not finite or lie outside `[0, 1]`
 (deviation limits `(0, 1]`); `lower > upper`; a group constraint with neither
-bound; a duplicated or empty `groups` entry; unknown `missing_policy`,
-`classification`, or `estimator` values; `tolerance` outside `(0, 1e-4]`; and
-an unsupported `schema_version`. Construction never clips or reorders values.
+bound; a duplicated or empty `groups` entry; unknown `missing_policy` or
+`estimator` values; a `classification` not of the form `<source>:<level>`;
+`tolerance` outside `(0, 1e-4]`; an unsupported `schema_version`; and, when
+deserializing, unknown fields or kinds. Booleans are not accepted as numbers.
+Construction never clips or reorders values; integer limits are stored as
+floats so that `1` and `1.0` produce the same hash.
 
 `schema_version` versions the contract. A set's rule version is
 `constraint_set_sha256`, the SHA-256 of its canonical JSON (sorted keys, no
@@ -736,7 +739,7 @@ PortfolioConstraintData(
     as_of: date,                       # decision date
     classifications: Mapping[str, ClassificationSnapshot],
     benchmarks: Mapping[str, BenchmarkSnapshot],
-    data_version: str,                 # SHA-256 over the snapshots below
+    data_version: str | None = None,   # computed; a supplied value must match
 )
 
 ClassificationSnapshot(
@@ -753,6 +756,11 @@ BenchmarkSnapshot(
     source_version: str,
 )
 ```
+
+`ClassificationSnapshot` and `BenchmarkSnapshot` are constructed only by data
+adapters, so they are importable from `alphalab.sdk.v1.constraints` but are not
+part of the `alphalab.sdk.v1` facade, whose names are injected into every
+strategy module.
 
 The decision date belongs to `PortfolioConstraintData`, not to
 `PortfolioConstraintSet`. A rule set is date-independent, so one project-layer
@@ -827,7 +835,12 @@ estimator and repair rules named by `RiskModelSpec`. The specification is part
 of the constraint, so the core rebuilds the same covariance without reading
 optimizer internals.
 
-**Validation errors.** Every adapter output is validated before use:
+**Validation errors.** Snapshot construction rejects malformed, duplicated,
+and future records. `validate_constraint_data(constraint_set, data, symbols)`
+then checks that the data can evaluate every constraint for the securities
+with non-zero weight. For grouped deviation constraints, it also checks the
+benchmark members with positive weight. The first problem raises
+`PortfolioConstraintError`, whose `code` is one of:
 
 | Code | Condition |
 | --- | --- |
@@ -836,7 +849,7 @@ optimizer internals.
 | `CONSTRAINT_DATA_FUTURE` | Any record has an effective date later than `as_of` |
 | `CONSTRAINT_DATA_STALE` | A benchmark snapshot exceeds `max_staleness_days` |
 | `CONSTRAINT_DATA_DUPLICATE` | A symbol appears twice in one snapshot |
-| `CONSTRAINT_DATA_INVALID` | Unknown symbols, non-finite values, or benchmark weights outside the sum band |
+| `CONSTRAINT_DATA_INVALID` | Malformed symbols or dates, negative or non-finite weights, benchmark weights outside the sum band, or the reserved group assigned by a provider |
 | `CONSTRAINT_DATA_VERSION_INVALID` | `data_version` does not match the snapshot contents |
 | `UNCLASSIFIED_SECURITY` | A security with non-zero weight has no group and `missing_policy="reject"` |
 
