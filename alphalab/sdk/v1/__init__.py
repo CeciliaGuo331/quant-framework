@@ -2,6 +2,7 @@
 
 from typing import Annotated
 
+from alphalab.sdk.v1.constraint_math import evaluate_constraints
 from alphalab.sdk.v1.constraints import (
     BenchmarkDeviationConstraint,
     ConstraintCheck,
@@ -79,6 +80,7 @@ __all__ = [
     "Weekly",
     "execution",
     "execution_data_fill",
+    "evaluate_constraints",
     "factor",
     "neutralize_factor_scores",
     "on_event",
